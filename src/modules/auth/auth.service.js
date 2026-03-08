@@ -119,14 +119,22 @@ class AuthService {
      * Login user using Supabase Auth
      */
     async login(email, password) {
+        console.log(`[AuthService] Attempting login for email: ${email}`);
+
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
 
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error(`[AuthService] Supabase login error: ${error.message} (Status: ${error.status})`);
+            const err = new Error(error.message);
+            err.statusCode = error.status || 401;
+            throw err;
+        }
 
         const { user, session } = data;
+        console.log(`[AuthService] Supabase login successful for UID: ${user.id}`);
 
         // Fetch user profile from public table to get role/companyId if not in metadata or if we want latest
         const userProfile = await this.getUserProfile(user.id);
