@@ -14,15 +14,16 @@ class InvoiceRepository {
             .select()
             .single();
 
-        if (invError) throw new Error(invError.message);
+        if (invError) {
+            console.error('Database Error in createInvoice:', invError);
+            throw new Error(invError.message);
+        }
 
         // 2. Insert Items
         if (items && items.length > 0) {
             const itemsData = items.map(item => ({
-                invoice_id: insertedInvoice.id,
-                company_id: invoiceData.company_id,
                 ...item,
-                created_at: new Date().toISOString()
+                invoiceId: insertedInvoice.id // Match DB column name
             }));
 
             const { error: itemsError } = await supabase
@@ -31,7 +32,6 @@ class InvoiceRepository {
 
             if (itemsError) {
                 console.error('Error inserting invoice items:', itemsError);
-                // In a real app, we might want to rollback the invoice insertion if items fail
             }
         }
 
@@ -53,7 +53,7 @@ class InvoiceRepository {
         const { data, error } = await supabase
             .from('invoice_items')
             .select('*')
-            .eq('invoice_id', invoiceId);
+            .eq('invoiceId', invoiceId);
 
         if (error) throw new Error(error.message);
         return data;
@@ -92,13 +92,13 @@ class InvoiceRepository {
             const { error: delError } = await supabase
                 .from('invoice_items')
                 .delete()
-                .eq('invoice_id', id);
+                .eq('invoiceId', id);
 
             if (delError) console.error('Error deleting old invoice items:', delError);
 
             // Add new items
             const itemsData = itemsToUpdate.map(item => ({
-                invoice_id: id,
+                invoiceId: id,
                 company_id: data.company_id || item.company_id,
                 ...item,
                 created_at: new Date().toISOString()

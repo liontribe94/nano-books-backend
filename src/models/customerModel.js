@@ -10,16 +10,14 @@ class CustomerModel extends BaseModel {
             throw new Error('Name and companyId are required');
         }
         return {
-            companyId,
+            company_id: companyId,
             name: data.name,
             email: data.email || '',
             phone: data.phone || '',
-            billingAddress: data.billingAddress || '',
-            shippingAddress: data.shippingAddress || '',
-            notes: data.notes || '',
-            isDeleted: false,
-            createdAt: data.createdAt || null,
-            updatedAt: data.updatedAt || null
+            address: data.billingAddress || data.address || '',
+            is_deleted: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
     }
 }

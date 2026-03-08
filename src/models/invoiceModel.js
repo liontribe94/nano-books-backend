@@ -26,8 +26,21 @@ class InvoiceModel extends BaseModel {
             notes: data.notes || '',
             is_deleted: false,
             created_by: createdBy,
-            created_at: data.createdAt || null,
+            created_at: data.createdAt || new Date().toISOString(),
             updated_at: data.updatedAt || null
+        };
+    }
+
+    prepareItem(item, invoiceId, companyId) {
+        return {
+            invoice_id: invoiceId,
+            company_id: companyId,
+            product_id: item.productId,
+            description: item.description,
+            quantity: item.quantity || 1,
+            unit_price: item.rate || item.unitPrice || 0,
+            total_price: item.amount || item.totalPrice || 0,
+            created_at: new Date().toISOString()
         };
     }
 }
