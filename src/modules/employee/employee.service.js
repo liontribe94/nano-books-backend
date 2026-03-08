@@ -18,6 +18,8 @@ class EmployeeService {
             salary: data.salary,
             hire_date: data.hireDate,
             status: data.status || 'ACTIVE',
+            bank_code: data.bankCode,
+            account_number: data.accountNumber,
             company_id: companyId,
             is_deleted: false,
             created_at: new Date().toISOString(),
@@ -53,6 +55,8 @@ class EmployeeService {
         if (data.department) updateData.department = data.department;
         if (data.salary) updateData.salary = data.salary;
         if (data.status) updateData.status = data.status;
+        if (data.bankCode) updateData.bank_code = data.bankCode;
+        if (data.accountNumber) updateData.account_number = data.accountNumber;
 
         updateData.updated_at = new Date().toISOString();
 
@@ -104,6 +108,8 @@ class EmployeeService {
             salary: data.salary,
             hireDate: data.hire_date,
             status: data.status,
+            bankCode: data.bank_code,
+            accountNumber: data.account_number,
             createdAt: data.created_at,
             updatedAt: data.updated_at
         };

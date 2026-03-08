@@ -9,7 +9,14 @@ const createEmployeeSchema = Joi.object({
     department: Joi.string().allow('', null),
     salary: Joi.number().min(0).required(),
     hireDate: Joi.date().iso().required(),
-    status: Joi.string().valid('ACTIVE', 'INACTIVE', 'TERMINATED').default('ACTIVE')
+    status: Joi.string().valid('ACTIVE', 'INACTIVE', 'TERMINATED').default('ACTIVE'),
+    bankCode: Joi.string().length(3).optional().messages({
+        'string.length': 'bankCode must be exactly 3 digits'
+    }),
+    accountNumber: Joi.string().min(10).max(10).optional().messages({
+        'string.min': 'accountNumber must be 10 digits',
+        'string.max': 'accountNumber must be 10 digits'
+    })
 });
 
 const updateEmployeeSchema = Joi.object({
@@ -20,7 +27,14 @@ const updateEmployeeSchema = Joi.object({
     position: Joi.string().optional(),
     department: Joi.string().allow('', null),
     salary: Joi.number().min(0).optional(),
-    status: Joi.string().valid('ACTIVE', 'INACTIVE', 'TERMINATED').optional()
+    status: Joi.string().valid('ACTIVE', 'INACTIVE', 'TERMINATED').optional(),
+    bankCode: Joi.string().length(3).optional().messages({
+        'string.length': 'bankCode must be exactly 3 digits'
+    }),
+    accountNumber: Joi.string().min(10).max(10).optional().messages({
+        'string.min': 'accountNumber must be 10 digits',
+        'string.max': 'accountNumber must be 10 digits'
+    })
 }).min(1);
 
 module.exports = {

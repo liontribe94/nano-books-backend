@@ -11,12 +11,10 @@ class InventoryService {
             name: data.name,
             sku: data.sku,
             description: data.description || '',
-            price: data.price,
-            cost: data.cost || 0,
-            stock_quantity: data.initialStock || 0, // Opening stock
-            reorder_point: data.reorderPoint || 5,
-            category: data.category || 'General',
-            unit: data.unit || 'item',
+            unit_price: data.price !== undefined ? data.price : data.sellingPrice,
+            cost_price: data.cost !== undefined ? data.cost : (data.costPrice || 0),
+            quantity_in_stock: data.initialStock !== undefined ? data.initialStock : (data.stockQuantity || 0), // Opening stock
+            reorder_level: data.reorderPoint !== undefined ? data.reorderPoint : (data.minStockLevel || 5),
             is_deleted: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -62,13 +60,21 @@ class InventoryService {
         if (!existing) throw new Error('Product not found');
 
         const updateData = {
-            ...data,
             updated_at: new Date().toISOString()
         };
 
-        // Prevent direct stock manipulation via update, must use adjustStock
-        delete updateData.stockQuantity;
-        delete updateData.initialStock;
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.sku !== undefined) updateData.sku = data.sku;
+        if (data.description !== undefined) updateData.description = data.description;
+
+        const price = data.price !== undefined ? data.price : data.sellingPrice;
+        if (price !== undefined) updateData.unit_price = price;
+
+        const cost = data.cost !== undefined ? data.cost : data.costPrice;
+        if (cost !== undefined) updateData.cost_price = cost;
+
+        const reorder = data.reorderPoint !== undefined ? data.reorderPoint : data.minStockLevel;
+        if (reorder !== undefined) updateData.reorder_level = reorder;
 
         const updated = await inventoryRepository.updateProduct(id, updateData);
         await auditLogService.log(userId, companyId, 'UPDATE', 'product', id);
@@ -104,7 +110,7 @@ class InventoryService {
 
         // Update product stock
         await inventoryRepository.updateProduct(id, {
-            stock_quantity: newStock,
+            quantity_in_stock: newStock,
             updated_at: new Date().toISOString()
         });
 
@@ -126,14 +132,16 @@ class InventoryService {
     }
     async getStats(companyId) {
         const products = await inventoryRepository.findProductsByCompany(companyId);
-        const totalProducts = products.length;
-        const totalValue = products.reduce((sum, p) => sum + (p.price * (p.stock_quantity || 0)), 0);
-        const lowStock = products.filter(p => (p.stock_quantity || 0) <= (p.reorder_point || 5)).length;
+        const onHand = products.reduce((sum, p) => sum + (p.quantity_in_stock || 0), 0);
+        const value = products.reduce((sum, p) => sum + (p.unit_price * (p.quantity_in_stock || 0)), 0);
+        const lowStock = products.filter(p => (p.quantity_in_stock || 0) <= (p.reorder_level || 5)).length;
 
         return {
-            totalProducts,
-            totalValue,
-            lowStock
+            onHand: onHand,
+            allocated: 0,
+            available: onHand,
+            lowStockThreshold: 50,
+            value: value
         };
     }
 
@@ -145,10 +153,10 @@ class InventoryService {
             name: data.name,
             sku: data.sku,
             description: data.description,
-            price: data.price,
-            cost: data.cost,
-            stockQuantity: data.stock_quantity,
-            reorderPoint: data.reorder_point,
+            price: data.unit_price,
+            cost: data.cost_price,
+            stockQuantity: data.quantity_in_stock,
+            reorderPoint: data.reorder_level,
             category: data.category,
             unit: data.unit,
             isDeleted: data.is_deleted,

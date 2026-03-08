@@ -24,12 +24,12 @@ class CustomerRepository {
     }
 
     async findByCompany(companyId, filters = {}) {
-        const { isDeleted = false } = filters;
+        const { is_deleted = false } = filters;
         let query = supabase
             .from('customers')
             .select('*')
             .eq('company_id', companyId)
-            .eq('is_deleted', isDeleted);
+            .eq('is_deleted', is_deleted);
 
         query = query.order('created_at', { ascending: false });
 

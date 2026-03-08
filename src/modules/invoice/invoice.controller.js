@@ -55,11 +55,21 @@ const markAsPaid = async (req, res, next) => {
     }
 };
 
+const sendInvoice = async (req, res, next) => {
+    try {
+        await invoiceService.sendInvoiceViaEmail(req.params.id, req.user.uid, req.user.companyId);
+        res.status(200).json({ success: true, message: 'Invoice sent successfully' });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createInvoice,
     getInvoices,
     getInvoice,
     updateInvoice,
     deleteInvoice,
-    markAsPaid
+    markAsPaid,
+    sendInvoice
 };

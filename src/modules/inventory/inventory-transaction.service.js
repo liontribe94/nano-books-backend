@@ -2,10 +2,15 @@ const inventoryRepository = require('./inventory.repository');
 
 class InventoryTransactionService {
     async recordStockMovement(data, transaction = null) {
-        // data: { productId, companyId, type (IN/OUT/ADJUST), quantity, reason, referenceId, userId }
-
+        // data can be camelCase or snake_case, we ensure snake_case for DB
         const movementData = {
-            ...data,
+            product_id: data.productId || data.product_id,
+            company_id: data.companyId || data.company_id,
+            type: data.type,
+            quantity: data.quantity,
+            reason: data.reason,
+            reference_id: data.referenceId || data.reference_id,
+            user_id: data.userId || data.user_id,
             created_at: new Date().toISOString()
         };
 

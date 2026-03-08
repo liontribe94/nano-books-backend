@@ -3,7 +3,11 @@ const invoiceModel = require('../../models/invoiceModel');
 const { calculateInvoiceTotals } = require('./invoice-calculation.service');
 const { generateInvoiceNumber } = require('./invoice-number.service');
 const auditLogService = require('../../services/auditLogService');
+const ledgerService = require('../accounting/ledger.service');
 const { paginate } = require('../../utils/pagination');
+const customerService = require('../customer/customer.service');
+const emailService = require('../../services/emailService');
+const invoicePdfService = require('./invoice-pdf.service');
 class InvoiceService {
     async createInvoice(data, userId, companyId) {
         if (!data.invoiceNumber) {
@@ -15,9 +19,9 @@ class InvoiceService {
         const invoiceData = {
             ...data,
             subtotal,
-            tax_total: taxTotal,
-            total_amount: totalAmount,
-            created_at: new Date().toISOString()
+            taxTotal,
+            totalAmount,
+            createdAt: new Date().toISOString()
         };
 
         // Prepare data using model
@@ -26,10 +30,40 @@ class InvoiceService {
 
         const preparedInvoice = invoiceModel.prepare(invoiceData, companyId, userId);
 
-        // Re-attach items for repository
-        preparedInvoice.items = items;
+        // Re-attach items for repository - using prepareItem
+        preparedInvoice.items = items.map(item => invoiceModel.prepareItem(item, null, companyId));
 
         const result = await invoiceRepository.create(preparedInvoice);
+
+        // Create Ledger Entry
+        try {
+            await ledgerService.createJournalEntry({
+                companyId,
+                date: preparedInvoice.issue_date,
+                description: `Invoice ${preparedInvoice.invoice_number} created`,
+                lines: [
+                    {
+                        accountId: 'accounts_receivable', // This should idealy be a dynamic ID from project settings
+                        debit: preparedInvoice.total_amount,
+                        credit: 0
+                    },
+                    {
+                        accountId: 'sales_revenue',
+                        debit: 0,
+                        credit: preparedInvoice.subtotal
+                    },
+                    {
+                        accountId: 'tax_payable',
+                        debit: 0,
+                        credit: preparedInvoice.tax_total
+                    }
+                ]
+            });
+        } catch (ledgerError) {
+            console.error('Failed to create ledger entry for invoice:', ledgerError);
+            // We don't throw here to avoid failing the whole invoice creation, 
+            // but we log it for manual reconciliation.
+        }
 
         await auditLogService.log(userId, companyId, 'CREATE', 'invoice', result.id);
 
@@ -136,6 +170,35 @@ class InvoiceService {
         }
 
         return mapped;
+    }
+
+    async sendInvoiceViaEmail(invoiceId, userId, companyId) {
+        const invoice = await this.getInvoiceById(invoiceId, companyId);
+        if (!invoice) throw new Error('Invoice not found');
+
+        const customer = await customerService.getCustomerById(invoice.customerId, companyId);
+        if (!customer) throw new Error('Customer not found');
+        if (!customer.email) throw new Error('Customer email not found');
+
+        // Generate PDF
+        const pdfBuffer = await invoicePdfService.generateInvoice(invoice, customer);
+
+        // Send Email
+        await emailService.sendEmail({
+            to: customer.email,
+            subject: `Invoice ${invoice.invoiceNumber} from Nano Books`,
+            text: `Dear ${customer.name},\n\nPlease find attached invoice ${invoice.invoiceNumber} for your recent purchase.\n\nTotal Amount: ${invoice.totalAmount}\nDue Date: ${new Date(invoice.dueDate).toLocaleDateString()}\n\nThank you for your business!`,
+            html: `<p>Dear ${customer.name},</p><p>Please find attached invoice <strong>${invoice.invoiceNumber}</strong> for your recent purchase.</p><p><strong>Total Amount:</strong> ${invoice.totalAmount}<br><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString()}</p><p>Thank you for your business!</p>`,
+            attachments: [
+                {
+                    filename: `Invoice_${invoice.invoiceNumber}.pdf`,
+                    content: pdfBuffer,
+                },
+            ],
+        });
+
+        await auditLogService.log(userId, companyId, 'SEND_EMAIL', 'invoice', invoiceId);
+        return true;
     }
 }
 

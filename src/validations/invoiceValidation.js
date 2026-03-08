@@ -10,6 +10,9 @@ const invoiceItemSchema = Joi.object({
 const createInvoiceSchema = Joi.object({
     customerId: Joi.string().required(),
     invoiceNumber: Joi.string().required(),
+    taxTotal: Joi.string().required(),
+    subtotal: Joi.string().required(),
+    totalAmount: Joi.string().required(),
     issueDate: Joi.date().required(),
     dueDate: Joi.date().required(),
     currency: Joi.string().default('USD'),
@@ -18,6 +21,8 @@ const createInvoiceSchema = Joi.object({
     discount: Joi.number().min(0).default(0),
     notes: Joi.string().allow('', null),
 });
+
+
 
 const updateInvoiceSchema = Joi.object({
     customerId: Joi.string().optional(),

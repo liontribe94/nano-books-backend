@@ -38,6 +38,18 @@ class PayrollRepository {
         if (error && error.code !== 'PGRST116') throw new Error(error.message); // PGRST116 is no rows
         return data;
     }
+
+    async updateStatus(id, status) {
+        const { data, error } = await supabase
+            .from('payroll_runs')
+            .update({ status, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+        return data;
+    }
 }
 
 module.exports = new PayrollRepository();

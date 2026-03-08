@@ -9,10 +9,11 @@ const { createInvoiceSchema, updateInvoiceSchema } = require('../modules/invoice
 router.use(authenticate);
 router.use(companyAccessGuard);
 
-router.post('/', validate(createInvoiceSchema), invoiceController.createInvoice);
+router.post('/create', validate(createInvoiceSchema), invoiceController.createInvoice);
 router.get('/', invoiceController.getInvoices);
 router.get('/:id', invoiceController.getInvoice);
 router.patch('/:id', validate(updateInvoiceSchema), invoiceController.updateInvoice);
+router.patch('/:id/send', invoiceController.sendInvoice);
 router.patch('/:id/pay', invoiceController.markAsPaid);
 router.delete('/:id', invoiceController.deleteInvoice);
 

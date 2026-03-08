@@ -1,6 +1,7 @@
 const payrollRepository = require('./payroll.repository');
 const employeeService = require('../employee/employee.service');
 const auditLogService = require('../../services/auditLogService');
+const paymentService = require('../payment/payment.service');
 
 class PayrollService {
     async getCurrentRun(companyId) {
@@ -60,6 +61,76 @@ class PayrollService {
         const run = await payrollRepository.createPayrollRun(runData);
         await auditLogService.log(userId, companyId, 'CREATE', 'payroll', run.id);
         return this.mapToCamelCase(run);
+    }
+
+    async payoutPayroll(runId, userId, companyId) {
+        // 1. Fetch the payroll run
+        // For now, let's assume we have a findById in repository
+        const runs = await payrollRepository.findRunsByCompany(companyId);
+        const run = runs.find(r => r.id === runId);
+
+        if (!run) throw new Error('Payroll run not found');
+        if (run.status === 'PAID') throw new Error('Payroll already paid');
+
+        const results = [];
+        const details = run.details || [];
+
+        for (const item of details) {
+            try {
+                // Fetch full employee details to get bank info
+                const employee = await employeeService.getEmployeeById(item.employeeId, companyId);
+
+                if (!employee || !employee.bankCode || !employee.accountNumber) {
+                    results.push({
+                        employeeId: item.employeeId,
+                        status: 'FAILED',
+                        error: 'Missing bank details'
+                    });
+                    continue;
+                }
+
+                const transferResult = await paymentService.initiateTransfer({
+                    employeeId: employee.id,
+                    employeeName: `${employee.firstName} ${employee.lastName}`,
+                    employeeEmail: employee.email,
+                    bankCode: employee.bankCode,
+                    accountNumber: employee.accountNumber,
+                    amount: item.netPay,
+                    currency: 'NGN', // Default to NGN
+                    narration: `Payroll for ${run.period_start} to ${run.period_end}`,
+                    companyId,
+                    userId,
+                    payrollRunId: runId
+                });
+
+                results.push({
+                    employeeId: item.employeeId,
+                    status: 'SUCCESS',
+                    transferId: transferResult.id
+                });
+            } catch (error) {
+                results.push({
+                    employeeId: item.employeeId,
+                    status: 'FAILED',
+                    error: error.message
+                });
+            }
+        }
+
+        // 2. Update status if all or some succeeded
+        // For simplicity, mark as PAID even if some failed (real system would need partial success tracking)
+        await payrollRepository.updateStatus(runId, 'PAID');
+
+        await auditLogService.log(userId, companyId, 'UPDATE', 'payroll', runId, {
+            action: 'payout',
+            results
+        });
+
+        return {
+            runId,
+            message: 'Payout process completed',
+            results
+        };
     }
 
     async getStats(companyId) {

@@ -9,8 +9,18 @@ class AuthService {
     async register(userData) {
         const { name, email, password, companyName, role = 'admin' } = userData;
 
+        // Create a fresh client to avoid mutating the global singleton client
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseAuth = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY,
+            {
+                auth: { persistSession: false, autoRefreshToken: false }
+            }
+        );
+
         // 1. Create User in Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await supabaseAuth.auth.signUp({
             email,
             password,
             options: {
@@ -67,7 +77,17 @@ class AuthService {
     }
 
     async login(email, password) {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // Create a fresh client to avoid mutating the global singleton client
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseAuth = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY,
+            {
+                auth: { persistSession: false, autoRefreshToken: false }
+            }
+        );
+
+        const { data, error } = await supabaseAuth.auth.signInWithPassword({
             email,
             password
         });

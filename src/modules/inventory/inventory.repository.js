@@ -8,7 +8,10 @@ class InventoryRepository {
             .select()
             .single();
 
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error('Database Error in createProduct:', error);
+            throw new Error(error.message);
+        }
         return inserted;
     }
 
@@ -61,7 +64,10 @@ class InventoryRepository {
             .select()
             .single();
 
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error('Database Error in recordMovement:', error);
+            throw new Error(error.message);
+        }
         return inserted;
     }
 

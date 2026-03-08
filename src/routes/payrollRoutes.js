@@ -13,6 +13,7 @@ router.get('/current', payrollController.getCurrentRun);
 router.get('/history', payrollController.getHistory);
 router.post('/calculate', validate(calculatePayrollSchema), payrollController.calculatePayroll);
 router.post('/submit', validate(submitPayrollSchema), payrollController.submitPayroll);
+router.post('/payout', payrollController.payoutPayroll);
 router.get('/stats', payrollController.getStats);
 
 module.exports = router;

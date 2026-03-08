@@ -1,218 +1,241 @@
-🏷 Products / Inventory Collection
+-- ==========================================
+-- 1. DROP EXISTING TABLES
+-- ==========================================
 
-This is the missing core logic.
+DROP TABLE IF EXISTS public.payments CASCADE;
+DROP TABLE IF EXISTS public.inventory_movements CASCADE;
+DROP TABLE IF EXISTS public.invoice_items CASCADE;
+DROP TABLE IF EXISTS public.invoices CASCADE;
+DROP TABLE IF EXISTS public.products CASCADE;
+DROP TABLE IF EXISTS public.expenses CASCADE;
+DROP TABLE IF EXISTS public.customers CASCADE;
+DROP TABLE IF EXISTS public.vendors CASCADE;
+DROP TABLE IF EXISTS public.bank_accounts CASCADE;
+DROP TABLE IF EXISTS public.ledger_transactions CASCADE;
+DROP TABLE IF EXISTS public.chart_of_accounts CASCADE;
+DROP TABLE IF EXISTS public.settings CASCADE;
 
-Collection: products
+-- Note: We are not dropping "users" and "companies" as they are tied to Supabase Auth.
+-- but if you want to wipe everything, uncomment them.
+-- DROP TABLE IF EXISTS public.companies CASCADE;
+-- DROP TABLE IF EXISTS public.users CASCADE;
 
-Stores items or services sold.
+-- ==========================================
+-- 2. CREATE TRUE ACCURATE SCHEMA
+-- ==========================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-Schema
-Field	Type	Required	Description
-id	string	✅	Product ID
-companyId	string	✅	Owner company
-name	string	✅	Product name
-sku	string	❌	Stock keeping unit
-description	string	❌	Product description
-type	string	✅	product OR service
-unitPrice	number	✅	Default selling price
-costPrice	number	❌	Purchase cost
-quantityInStock	number	❌	Current stock
-reorderLevel	number	❌	Low stock alert
-isActive	boolean	✅	Product availability
-createdAt	timestamp	✅	Creation date
-updatedAt	timestamp	❌	Last update
-📊 Inventory Transactions Collection
+-----------------------------------------
+-- Chart Of Accounts
+-----------------------------------------
+CREATE TABLE public.chart_of_accounts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL, 
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, 
+    code TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Tracks stock movement history.
+-----------------------------------------
+-- Bank Accounts
+-----------------------------------------
+CREATE TABLE public.bank_accounts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    account_name TEXT NOT NULL,
+    bank_name TEXT,
+    account_number TEXT,
+    balance NUMERIC(12, 2) DEFAULT 0.00,
+    currency TEXT DEFAULT 'NGN',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 
-Collection: inventoryTransactions
-Schema
-Field	Type	Required	Description
-id	string	✅	Transaction ID
-companyId	string	✅	Owner company
-productId	string	✅	Linked product
-type	string	✅	purchase, sale, adjustment
-quantity	number	✅	Stock change amount
-referenceId	string	❌	Invoice or purchase reference
-createdBy	string	✅	User who triggered
-createdAt	timestamp	✅	Timestamp
-💰 Payments Collection
+-----------------------------------------
+-- Vendors / Suppliers
+-----------------------------------------
+CREATE TABLE public.vendors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Tracks payments received from customers.
+-----------------------------------------
+-- Customers (Uses mixed case based on repos)
+-----------------------------------------
+CREATE TABLE public.customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "companyId" UUID, -- Some older repos use camelCase, fallback to snake_case just in case
+    company_id UUID,  -- customer.repository uses EQ company_id
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    "isDeleted" BOOLEAN DEFAULT false,
+    is_deleted BOOLEAN DEFAULT false, 
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Collection: payments
-Schema
-Field	Type	Required	Description
-id	string	✅	Payment ID
-companyId	string	✅	Owner company
-invoiceId	string	✅	Linked invoice
-amount	number	✅	Payment amount
-paymentMethod	string	✅	cash, transfer, card
-paymentDate	timestamp	✅	Payment date
-referenceNumber	string	❌	Bank reference
-notes	string	❌	Extra details
-createdBy	string	✅	User ID
-createdAt	timestamp	✅	Timestamp
-🧾 Expenses Collection
+-----------------------------------------
+-- Products / Inventory (Uses complete snake_case)
+-----------------------------------------
+CREATE TABLE public.products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    name TEXT NOT NULL,
+    sku TEXT,
+    description TEXT,
+    unit_price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    cost_price NUMERIC(12, 2) DEFAULT 0.00,
+    quantity_in_stock NUMERIC(10, 2) DEFAULT 0,
+    reorder_level NUMERIC(10, 2) DEFAULT 5,
+    is_deleted BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Tracks company expenses.
+-----------------------------------------
+-- Inventory Movements
+-----------------------------------------
+CREATE TABLE public.inventory_movements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    type TEXT NOT NULL, 
+    quantity NUMERIC(10, 2) NOT NULL,
+    reason TEXT, 
+    reference_id TEXT, 
+    user_id UUID NOT NULL, 
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 
-Collection: expenses
-Schema
-Field	Type	Required	Description
-id	string	✅	Expense ID
-companyId	string	✅	Owner company
-vendorId	string	❌	Supplier reference
-category	string	✅	Expense type
-amount	number	✅	Expense amount
-expenseDate	timestamp	✅	Date
-paymentMethod	string	❌	Payment method
-description	string	❌	Expense details
-createdBy	string	✅	User ID
-createdAt	timestamp	✅	Timestamp
-🏭 Vendors / Suppliers Collection
-Collection: vendors
-Schema
-Field	Type	Required	Description
-id	string	✅	Vendor ID
-companyId	string	✅	Owner company
-name	string	✅	Vendor name
-email	string	❌	Email
-phone	string	❌	Phone
-address	string	❌	Address
-createdAt	timestamp	✅	Timestamp
-🏦 Bank Accounts Collection
-Collection: bankAccounts
-Schema
-Field	Type	Required	Description
-id	string	✅	Account ID
-companyId	string	✅	Owner company
-accountName	string	✅	Bank account name
-bankName	string	❌	Bank name
-accountNumber	string	❌	Account number
-balance	number	✅	Current balance
-currency	string	✅	Account currency
-createdAt	timestamp	✅	Timestamp
-📚 Chart Of Accounts Collection
+-----------------------------------------
+-- Expenses
+-----------------------------------------
+CREATE TABLE public.expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    vendor_id UUID,
+    category_id UUID, -- Found in your new expense routes
+    category TEXT, 
+    amount NUMERIC(12, 2) NOT NULL,
+    expense_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+    payment_method TEXT,
+    description TEXT,
+    user_id UUID NOT NULL,
+    is_deleted BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-This is the HEART of accounting.
+-----------------------------------------
+-- Invoices (Older codebase, primarily camelCase columns expected)
+-----------------------------------------
+CREATE TABLE public.invoices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "companyId" UUID NOT NULL,
+    company_id UUID, -- The repository has a mix of them depending on if it's new or old
+    "customerId" UUID NOT NULL,
+    customer_id UUID,
+    "invoiceNumber" TEXT,
+    invoice_number TEXT,
+    status TEXT DEFAULT 'draft', 
+    "issueDate" TIMESTAMPTZ DEFAULT now(),
+    "dueDate" TIMESTAMPTZ,
+    subtotal NUMERIC(12, 2) DEFAULT 0.00,
+    "taxTotal" NUMERIC(12, 2) DEFAULT 0.00,
+    "totalAmount" NUMERIC(12, 2) DEFAULT 0.00,
+    discount NUMERIC(12, 2) DEFAULT 0.00,
+    notes TEXT,
+    "isDeleted" BOOLEAN DEFAULT false,
+    is_deleted BOOLEAN DEFAULT false,
+    "createdAt" TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ DEFAULT now()
+);
 
-Collection: chartOfAccounts
-Schema
-Field	Type	Required	Description
-id	string	✅	Account ID
-companyId	string	✅	Owner company
-name	string	✅	Account name
-type	string	✅	asset, liability, income, expense, equity
-code	string	❌	Account code
-isActive	boolean	✅	Status
-createdAt	timestamp	✅	Timestamp
-📖 General Ledger Transactions Collection
+-----------------------------------------
+-- Invoice Items (Older codebase, primarily camelCase)
+-----------------------------------------
+CREATE TABLE public.invoice_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "invoiceId" UUID NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE,
+    invoice_id UUID, 
+    "companyId" UUID NOT NULL,
+    company_id UUID,
+    "productId" UUID, 
+    description TEXT NOT NULL,
+    quantity NUMERIC(10, 2) NOT NULL DEFAULT 1,
+    rate NUMERIC(12, 2) NOT NULL,
+    "taxPercentage" NUMERIC(5, 2) DEFAULT 0,
+    amount NUMERIC(12, 2) NOT NULL,
+    "createdAt" TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 
-This records accounting entries.
+-----------------------------------------
+-- Settings
+-----------------------------------------
+CREATE TABLE public.settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "companyId" UUID NOT NULL,
+    company_id UUID,
+    "currency" TEXT DEFAULT 'NGN',
+    -- Add any other JSON blocks or fields your settingModel saves
+    "createdAt" TIMESTAMPTZ DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+);
 
-Collection: ledgerTransactions
-Schema
-Field	Type	Required	Description
-id	string	✅	Transaction ID
-companyId	string	✅	Owner company
-accountId	string	✅	Chart account
-debit	number	❌	Debit value
-credit	number	❌	Credit value
-referenceType	string	❌	invoice, expense, payment
-referenceId	string	❌	Related record
-createdAt	timestamp	✅	Timestamp
-🔄 INVENTORY LOGIC FLOW
-When invoice is created
-Step 1
+-----------------------------------------
+-- Payments
+-----------------------------------------
+CREATE TABLE public.payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    invoice_id UUID NOT NULL,
+    flw_transaction_id TEXT,
+    flw_tx_ref TEXT UNIQUE,
+    amount NUMERIC(12, 2) NOT NULL,
+    currency TEXT DEFAULT 'NGN',
+    payment_method TEXT,
+    status TEXT DEFAULT 'pending', 
+    customer_email TEXT,
+    customer_name TEXT,
+    flw_response JSONB,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Fetch product from products collection
+-----------------------------------------
+-- General Ledger Transactions
+-----------------------------------------
+CREATE TABLE public.ledger_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID NOT NULL,
+    account_id UUID NOT NULL REFERENCES public.chart_of_accounts(id) ON DELETE CASCADE,
+    debit NUMERIC(12, 2) DEFAULT 0.00,
+    credit NUMERIC(12, 2) DEFAULT 0.00,
+    reference_type TEXT, 
+    reference_id UUID,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 
-Step 2
+-- ==========================================
+-- 3. FIX PERMISSIONS (IMPORTANT)
+-- ==========================================
 
-Reduce stock
-
-quantityInStock -= quantitySold
-
-Step 3
-
-Create inventoryTransactions record
-
-type = "sale"
-
-When purchase is recorded
-quantityInStock += purchasedQuantity
-
-💰 ACCOUNTING LOGIC FLOW
-Invoice Created
-Account	Entry
-Accounts Receivable	Debit
-Revenue	Credit
-Payment Received
-Account	Entry
-Bank	Debit
-Accounts Receivable	Credit
-Expense Recorded
-Account	Entry
-Expense	Debit
-Bank	Credit
-🧮 Updated Invoice Items Schema (IMPORTANT)
-
-You must link products to invoice items.
-
-Add this field:
-
-Field	Type
-productId	string
-🔐 Multi Tenant Rule Still Applies
-
-Every new collection MUST contain:
-
-companyId
-
-📊 NEW RELATIONSHIP STRUCTURE
-Company
- ├ Users
- ├ Customers
- ├ Vendors
- ├ Products
- │    └ Inventory Transactions
- ├ Invoices
- │    └ Invoice Items
- │           └ Products
- ├ Payments
- ├ Expenses
- ├ Bank Accounts
- ├ Chart Of Accounts
- ├ Ledger Transactions
- ├ Settings
- └ Audit Logs
-
-🚀 FUTURE FEATURES NOW SUPPORTED
-
-You can now easily add:
-
-Profit & Loss reports
-
-Balance sheet
-
-Cashflow reports
-
-Inventory valuation
-
-Purchase orders
-
-Payroll
-
-Subscription billing
-
-⭐ IMPORTANT ARCHITECTURE ADVICE (Senior Dev Tip)
-
-Firestore works fine but accounting systems become relational heavy.
-
-If this grows big later:
-
-👉 You may migrate accounting core to SQL
-👉 Keep Firestore for realtime UI features
-
-Many fintech systems do this hybrid approach.
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;

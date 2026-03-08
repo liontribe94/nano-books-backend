@@ -11,6 +11,9 @@ const createInvoiceSchema = Joi.object({
     customerId: Joi.string().required(),
     invoiceNumber: Joi.string().optional(), // Can be auto-generated
     issueDate: Joi.date().required(),
+    taxTotal: Joi.number().required(),
+    subtotal: Joi.number().required(),
+    totalAmount: Joi.number().required(),
     dueDate: Joi.date().required(),
     currency: Joi.string().default('USD'),
     status: Joi.string().valid('draft', 'sent', 'paid', 'overdue').default('draft'),

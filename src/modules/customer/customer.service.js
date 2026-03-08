@@ -5,7 +5,6 @@ const { paginate } = require('../../utils/pagination'); // Adjusted path
 class CustomerService {
     async createCustomer(data, userId, companyId) {
         const preparedData = customerModel.prepare(data, companyId);
-        preparedData.created_at = new Date().toISOString();
 
         const customer = await customerRepository.create(preparedData);
 
@@ -34,10 +33,17 @@ class CustomerService {
         const existing = await this.getCustomerById(id, companyId);
         if (!existing) throw new Error('Customer not found');
 
+        // Map camelCase to snake_case for update
         const updateData = {
-            ...data,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            address: data.billingAddress || data.address,
             updated_at: new Date().toISOString()
         };
+
+        // Remove undefined keys
+        Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
         const updated = await customerRepository.update(id, updateData);
         await auditLogService.log(userId, companyId, 'UPDATE', 'customer', id);

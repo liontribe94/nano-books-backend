@@ -45,10 +45,21 @@ const getStats = async (req, res, next) => {
     }
 };
 
+const payoutPayroll = async (req, res, next) => {
+    try {
+        const { runId } = req.body;
+        const result = await payrollService.payoutPayroll(runId, req.user.uid, req.user.companyId);
+        res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getCurrentRun,
     getHistory,
     calculatePayroll,
     submitPayroll,
-    getStats
+    getStats,
+    payoutPayroll
 };
