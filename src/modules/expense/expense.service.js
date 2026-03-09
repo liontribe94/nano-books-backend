@@ -3,18 +3,28 @@ const { v4: uuidv4 } = require('uuid');
 
 class ExpenseService {
     async createExpense(expenseData, userId, companyId) {
+        const normalizedDate = expenseData.expenseDate || expenseData.date || new Date().toISOString().split('T')[0];
+        const normalizedDescription = expenseData.description || expenseData.merchant || '';
+
+        const payload = {
+            company_id: companyId,
+            amount: expenseData.amount,
+            category: expenseData.category,
+            expense_date: normalizedDate,
+            payment_method: expenseData.paymentMethod || expenseData.payment || null,
+            description: normalizedDescription,
+            id: uuidv4(),
+            created_by: userId,
+            created_at: new Date().toISOString()
+        };
+
+        if (expenseData.vendorId) {
+            payload.vendor_id = expenseData.vendorId;
+        }
+
         const { data, error } = await supabase
             .from('expenses')
-            .insert([{
-                company_id: companyId,
-                amount: expenseData.amount,
-                category: expenseData.category,
-                expense_date: expenseData.expenseDate || new Date().toISOString().split('T')[0],
-                description: expenseData.description || '',
-                id: uuidv4(),
-                created_by: userId,
-                created_at: new Date().toISOString()
-            }])
+            .insert([payload])
             .select()
             .single();
 
@@ -61,9 +71,33 @@ class ExpenseService {
     }
 
     async updateExpense(id, updateData, companyId) {
+        const normalizedUpdate = { ...updateData };
+
+        if (normalizedUpdate.date && !normalizedUpdate.expenseDate) {
+            normalizedUpdate.expenseDate = normalizedUpdate.date;
+        }
+        if (normalizedUpdate.payment && !normalizedUpdate.paymentMethod) {
+            normalizedUpdate.paymentMethod = normalizedUpdate.payment;
+        }
+        if (normalizedUpdate.merchant && !normalizedUpdate.description) {
+            normalizedUpdate.description = normalizedUpdate.merchant;
+        }
+
+        const payload = {
+            category: normalizedUpdate.category,
+            amount: normalizedUpdate.amount,
+            expense_date: normalizedUpdate.expenseDate,
+            payment_method: normalizedUpdate.paymentMethod,
+            description: normalizedUpdate.description,
+            vendor_id: normalizedUpdate.vendorId,
+            updated_at: new Date().toISOString()
+        };
+
+        Object.keys(payload).forEach((key) => payload[key] === undefined && delete payload[key]);
+
         const { data, error } = await supabase
             .from('expenses')
-            .update(updateData)
+            .update(payload)
             .eq('id', id)
             .eq('company_id', companyId)
             .select()
@@ -89,12 +123,12 @@ class ExpenseService {
         return {
             id: data.id,
             companyId: data.company_id,
-            merchant: data.description || 'Unknown Merchant', // Frontend uses merchant
+            merchant: data.description || 'Unknown Merchant',
             category: data.category,
             amount: parseFloat(data.amount),
             date: data.expense_date,
             description: data.description,
-            status: data.status || 'Approved', // Frontend uses status
+            status: data.status || 'Approved',
             createdBy: data.created_by,
             createdAt: data.created_at
         };

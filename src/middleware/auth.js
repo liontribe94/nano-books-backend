@@ -1,15 +1,11 @@
 const supabase = require('../config/supabase');
 
-/**
- * Helper to fetch user with retries for network resilience
- */
 const getUserWithRetry = async (token, maxRetries = 3) => {
     let lastError;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const { data, error } = await supabase.auth.getUser(token);
             if (error) {
-                // If it's a specific auth failure (400, 401, 403), don't retry, just return
                 if (error.status === 400 || error.status === 401 || error.status === 403) {
                     return { data: null, error };
                 }
@@ -19,7 +15,6 @@ const getUserWithRetry = async (token, maxRetries = 3) => {
         } catch (err) {
             lastError = err;
 
-            // Identify retriable network issues
             const errorMessage = err.message || '';
             const errorCode = err.code || '';
             const isNetworkError =
@@ -34,13 +29,18 @@ const getUserWithRetry = async (token, maxRetries = 3) => {
                 break;
             }
 
-            // Exponential backoff: 500ms, 1000ms, 2000ms
             const delay = 500 * Math.pow(2, attempt);
             console.warn(`Auth network error (Attempt ${attempt + 1}/${maxRetries}): ${errorMessage || errorCode}. Retrying in ${delay}ms...`);
             await new Promise(res => setTimeout(res, delay));
         }
     }
     return { data: null, error: lastError };
+};
+
+const normalizeRole = (role) => {
+    if (!role) return 'viewer';
+    if (role === 'staff') return 'viewer';
+    return role;
 };
 
 const authenticate = async (req, res, next) => {
@@ -56,23 +56,19 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     try {
-        // 1. Verify Token and get Auth User with retry for stability
         const result = await getUserWithRetry(token);
         const { data, error: authError } = result;
 
         if (authError) {
-            // Check if it's a definitive network failure after retries
             const isNetworkError = authError.message?.includes('fetch failed') || authError.code === 'UND_ERR_CONNECT_TIMEOUT';
 
             if (isNetworkError) {
-                console.error('CRITICAL: Auth service unreachable:', authError.message);
                 return res.status(503).json({
                     success: false,
                     error: 'Authentication service is temporarily unavailable. Please try again later.'
                 });
             }
 
-            console.error('Token verification failed:', authError.message);
             return res.status(401).json({
                 success: false,
                 error: 'Invalid or expired session.'
@@ -84,7 +80,6 @@ const authenticate = async (req, res, next) => {
             throw new Error('User data missing from auth response');
         }
 
-        // 2. Fetch User Profile from public.users to get companyId and role
         const { data: profile, error: profileError } = await supabase
             .from('users')
             .select('*')
@@ -92,7 +87,6 @@ const authenticate = async (req, res, next) => {
             .single();
 
         if (profileError || !profile) {
-            console.error('Profile lookup failed:', profileError?.message || 'No profile found');
             return res.status(404).json({
                 success: false,
                 error: 'User profile not found. Please contact support.'
@@ -106,12 +100,15 @@ const authenticate = async (req, res, next) => {
             });
         }
 
-        // 3. Attach to request
+        const organizationId = profile.organization_id || profile.company_id;
+
         req.user = {
             uid: user.id,
+            userId: user.id,
             email: user.email,
-            role: profile.role || 'staff',
-            companyId: profile.company_id
+            role: normalizeRole(profile.role),
+            companyId: profile.company_id,
+            organizationId
         };
 
         next();
@@ -125,4 +122,3 @@ const authenticate = async (req, res, next) => {
 };
 
 module.exports = authenticate;
-
