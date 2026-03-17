@@ -13,6 +13,22 @@ class AuthService {
         return role;
     }
 
+    mapUserProfileRow(data) {
+        if (!data) return null;
+        return {
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            role: this.normalizeRole(data.role),
+            companyId: data.company_id,
+            organizationId: data.organization_id || data.company_id,
+            phone: data.phone,
+            isActive: data.is_active,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+        };
+    }
+
     isMissingRelation(error) {
         const message = String(error?.message || '').toLowerCase();
         return message.includes('does not exist') || message.includes('could not find the table');
@@ -116,7 +132,73 @@ class AuthService {
         }
     }
 
+    async resolveFallbackCompanyId(authUser) {
+        const metadataCompanyId = authUser?.user_metadata?.companyId || authUser?.user_metadata?.organizationId;
+        if (metadataCompanyId) return metadataCompanyId;
+
+        const { data: orgOwner } = await supabase
+            .from('organizations')
+            .select('id')
+            .eq('owner_id', authUser.id)
+            .limit(1)
+            .maybeSingle();
+
+        if (orgOwner?.id) return orgOwner.id;
+
+        const { data: companyByEmail } = await supabase
+            .from('companies')
+            .select('id')
+            .eq('email', authUser.email)
+            .limit(1)
+            .maybeSingle();
+
+        if (companyByEmail?.id) return companyByEmail.id;
+
+        return null;
+    }
+
+    async recoverProfileByEmail(authUser) {
+        if (!authUser?.email) return null;
+
+        const { data: byEmail, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', authUser.email)
+            .limit(1)
+            .maybeSingle();
+
+        if (error || !byEmail) return null;
+
+        if (byEmail.is_active === false) {
+            return { blocked: true };
+        }
+
+        if (byEmail.id !== authUser.id) {
+            const { data: updated, error: updateError } = await supabase
+                .from('users')
+                .update({ id: authUser.id, updated_at: new Date().toISOString() })
+                .eq('id', byEmail.id)
+                .select('*')
+                .single();
+
+            if (!updateError && updated) {
+                return this.mapUserProfileRow(updated);
+            }
+        }
+
+        return this.mapUserProfileRow(byEmail);
+    }
+
     async createPublicUserProfile({ uid, name, email, companyId, role }) {
+        const existingById = await this.getUserProfile(uid);
+        if (existingById) return existingById;
+
+        const recovered = await this.recoverProfileByEmail({ id: uid, email });
+        if (recovered?.blocked) {
+            throw new Error('Your account has been deactivated. Please contact your administrator.');
+        }
+        if (recovered) return recovered;
+
         const preparedUser = userModel.prepare({
             name,
             companyId,
@@ -127,6 +209,7 @@ class AuthService {
         const finalUserPayload = {
             id: uid,
             ...preparedUser,
+            organization_id: companyId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
@@ -138,6 +221,30 @@ class AuthService {
         if (userError) {
             throw new Error(`User profile creation failed: ${userError.message}`);
         }
+
+        return this.mapUserProfileRow(finalUserPayload);
+    }
+
+    async ensureUserProfile(authUser) {
+        let profile = await this.getUserProfile(authUser.id);
+        if (profile) return profile;
+
+        const recovered = await this.recoverProfileByEmail(authUser);
+        if (recovered?.blocked) {
+            throw new Error('Your account has been deactivated. Please contact your administrator.');
+        }
+        if (recovered) return recovered;
+
+        const companyId = await this.resolveFallbackCompanyId(authUser);
+        if (!companyId) return null;
+
+        return this.createPublicUserProfile({
+            uid: authUser.id,
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+            email: authUser.email,
+            companyId,
+            role: this.normalizeRole(authUser.user_metadata?.role || 'viewer')
+        });
     }
 
     async registerCompanyOwner(userData) {
@@ -245,10 +352,10 @@ class AuthService {
         }
 
         const { user, session } = data;
-        const userProfile = await this.getUserProfile(user.id);
+        const userProfile = await this.ensureUserProfile(user);
 
         if (!userProfile) {
-            throw new Error('User profile not found or inactive');
+            throw new Error('User profile not found. Please contact support to complete account setup.');
         }
 
         return {
@@ -271,18 +378,7 @@ class AuthService {
         if (error || !data) return null;
         if (data.is_active === false) return null;
 
-        return {
-            id: data.id,
-            name: data.name,
-            email: data.email,
-            role: this.normalizeRole(data.role),
-            companyId: data.company_id,
-            organizationId: data.organization_id || data.company_id,
-            phone: data.phone,
-            isActive: data.is_active,
-            createdAt: data.created_at,
-            updatedAt: data.updated_at
-        };
+        return this.mapUserProfileRow(data);
     }
 }
 

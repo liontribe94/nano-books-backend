@@ -31,7 +31,7 @@ const getUserWithRetry = async (token, maxRetries = 3) => {
 
             const delay = 500 * Math.pow(2, attempt);
             console.warn(`Auth network error (Attempt ${attempt + 1}/${maxRetries}): ${errorMessage || errorCode}. Retrying in ${delay}ms...`);
-            await new Promise(res => setTimeout(res, delay));
+            await new Promise((res) => setTimeout(res, delay));
         }
     }
     return { data: null, error: lastError };
@@ -41,6 +41,40 @@ const normalizeRole = (role) => {
     if (!role) return 'viewer';
     if (role === 'staff') return 'viewer';
     return role;
+};
+
+const findProfile = async (user) => {
+    const byId = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (byId.data) {
+        return byId.data;
+    }
+
+    const byEmail = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', user.email)
+        .limit(1)
+        .maybeSingle();
+
+    if (!byEmail.data) return null;
+
+    if (byEmail.data.id !== user.id) {
+        const { data: updated } = await supabase
+            .from('users')
+            .update({ id: user.id, updated_at: new Date().toISOString() })
+            .eq('id', byEmail.data.id)
+            .select('*')
+            .maybeSingle();
+
+        return updated || byEmail.data;
+    }
+
+    return byEmail.data;
 };
 
 const authenticate = async (req, res, next) => {
@@ -80,13 +114,9 @@ const authenticate = async (req, res, next) => {
             throw new Error('User data missing from auth response');
         }
 
-        const { data: profile, error: profileError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+        const profile = await findProfile(user);
 
-        if (profileError || !profile) {
+        if (!profile) {
             return res.status(404).json({
                 success: false,
                 error: 'User profile not found. Please contact support.'
