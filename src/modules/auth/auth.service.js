@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
+const { createClient } = require('@supabase/supabase-js');
 const supabase = require('../../config/supabase');
 const userModel = require('../../models/userModel');
 const companyModel = require('../../models/companyModel');
@@ -7,6 +8,14 @@ const settingModel = require('../../models/settingModel');
 const auditLogService = require('../../services/auditLogService');
 
 class AuthService {
+    createAuthClient() {
+        return createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY,
+            { auth: { persistSession: false, autoRefreshToken: false } }
+        );
+    }
+
     normalizeRole(role) {
         if (!role) return 'admin';
         if (role === 'staff') return 'viewer';
@@ -277,7 +286,7 @@ class AuthService {
             console.warn('Audit log failed:', auditError.message || auditError);
         }
 
-        const { data: loginData } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: loginData } = await this.createAuthClient().auth.signInWithPassword({ email, password });
         const userProfile = await this.getUserProfile(user.id);
 
         return {
@@ -322,7 +331,7 @@ class AuthService {
             console.warn('Audit log failed:', auditError.message || auditError);
         }
 
-        const { data: loginData } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: loginData } = await this.createAuthClient().auth.signInWithPassword({ email, password });
         const userProfile = await this.getUserProfile(user.id);
 
         return {
@@ -343,7 +352,7 @@ class AuthService {
     }
 
     async login(email, password) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await this.createAuthClient().auth.signInWithPassword({ email, password });
 
         if (error) {
             const err = new Error(error.message);
