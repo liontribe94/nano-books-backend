@@ -1,15 +1,18 @@
 {
-    "version": 2,
-    "builds": [
+    "rewrites": [
         {
-            "src": "api/index.js",
-            "use": "@vercel/node"
+            "source": "/(.*)",
+            "destination": "/api"
         }
     ],
     "headers": [
         {
             "source": "/(.*)",
             "headers": [
+                {
+                    "key": "Access-Control-Allow-Credentials",
+                    "value": "true"
+                },
                 {
                     "key": "Access-Control-Allow-Origin",
                     "value": "https://www.nanobooks.org"
@@ -21,31 +24,8 @@
                 {
                     "key": "Access-Control-Allow-Headers",
                     "value": "Content-Type, Authorization"
-                },
-                {
-                    "key": "Access-Control-Allow-Credentials",
-                    "value": "true"
                 }
             ]
-        }
-    ],
-    "routes": [
-        {
-            "src": "/api/(.*)",
-            "methods": [
-                "OPTIONS"
-            ],
-            "status": 204,
-            "headers": {
-                "Access-Control-Allow-Origin": "https://www.nanobooks.org",
-                "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                "Access-Control-Allow-Credentials": "true"
-            }
-        },
-        {
-            "src": "/(.*)",
-            "dest": "api/index.js"
         }
     ]
 }
