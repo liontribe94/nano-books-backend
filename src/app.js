@@ -9,16 +9,29 @@ dotenv.config();
 
 const app = express();
 
+// CORS – allowed origins
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://nano-books-frontend.vercel.app',
+    'https://nano-books-backend.vercel.app',
+    'https://www.nanobooks.org'
+];
+
 // Middleware
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'https://nano-books-frontend.vercel.app',
-        'https://nano-books-backend.vercel.app',
-        'https://www.nanobooks.org'
-    ],
-    credentials: true
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Explicitly handle preflight OPTIONS for all routes (needed for Vercel)
+app.options('*', cors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(morgan('dev'));
