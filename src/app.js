@@ -15,6 +15,7 @@ const allowedOrigins = [
     'http://localhost:5174',
     'https://nano-books-frontend.vercel.app',
     'https://nano-books-backend.vercel.app',
+    'https://nanobooks.org',
     'https://www.nanobooks.org'
 ];
 
