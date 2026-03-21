@@ -28,7 +28,7 @@ app.use(cors({
 }));
 
 // Explicitly handle preflight OPTIONS for all routes (needed for Vercel)
-app.options('*', cors({
+app.options(/^.*$/, cors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
