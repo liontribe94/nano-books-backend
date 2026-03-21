@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const bankingController = require('../modules/banking/banking.controller');
-const authMiddleware = require('../middleware/authMiddleware');
+const authenticate = require('../middleware/auth');
 
-router.use(authMiddleware);
+router.use(authenticate);
 
 router.post('/mono-connect', bankingController.exchangeCode);
 router.get('/accounts', bankingController.getAccounts);
