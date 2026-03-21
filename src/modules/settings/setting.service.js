@@ -38,7 +38,7 @@ class SettingService {
 
         if (Array.isArray(data.currencies) && data.currencies.length > 0) {
             const defaultCurrency = data.currencies.find((currency) => currency.isDefault) || data.currencies[0];
-            nextMeta.defaultCurrency = defaultCurrency?.code || currentMeta.defaultCurrency || 'USD';
+            nextMeta.defaultCurrency = defaultCurrency?.code || currentMeta.defaultCurrency || 'NGN';
             nextMeta.currencies = data.currencies;
         }
 
@@ -132,7 +132,7 @@ class SettingService {
 
         const metadata = this.parsePaymentTerms(data.payment_terms);
         const defaultTaxRate = Number(data.default_tax_rate ?? 0);
-        const resolvedCurrency = metadata.defaultCurrency || 'USD';
+        const resolvedCurrency = metadata.defaultCurrency || 'NGN';
 
         return {
             id: data.id,
@@ -154,10 +154,28 @@ class SettingService {
             ],
             currencies: metadata.currencies || [
                 {
-                    country: { name: resolvedCurrency, flag: 'US' },
-                    code: resolvedCurrency,
+                    country: { name: 'Nigeria', flag: 'NG' },
+                    code: 'NGN',
                     rate: '1.0000',
                     isDefault: true
+                },
+                {
+                    country: { name: 'United Kingdom', flag: 'GB' },
+                    code: 'GBP',
+                    rate: '0.0005', // Example rate, should be updated by user/API
+                    isDefault: false
+                },
+                {
+                    country: { name: 'European Union', flag: 'EU' },
+                    code: 'EUR',
+                    rate: '0.0006', // Example rate
+                    isDefault: false
+                },
+                {
+                    country: { name: 'United States', flag: 'US' },
+                    code: 'USD',
+                    rate: '0.0006', // Example rate
+                    isDefault: false
                 }
             ],
             multiCurrencyEnabled: metadata.multiCurrencyEnabled ?? true,

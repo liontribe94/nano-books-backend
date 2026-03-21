@@ -52,6 +52,16 @@ class EmployeeRepository {
         if (error) throw new Error(error.message);
         return updated;
     }
+
+    async findPayrollHistory(employeeId, companyId) {
+        // Query payroll_runs table for entries where details contains this employeeId
+        return await supabase
+            .from('payroll_runs')
+            .select('*')
+            .eq('company_id', companyId)
+            .contains('details', [{ employeeId }])
+            .order('period_end', { ascending: false });
+    }
 }
 
 module.exports = new EmployeeRepository();

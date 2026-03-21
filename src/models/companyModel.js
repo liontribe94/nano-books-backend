@@ -15,7 +15,7 @@ class CompanyModel extends BaseModel {
             phone: data.phone || '',
             address: data.address || '',
             logo_url: data.logoUrl || '',
-            default_currency: data.defaultCurrency || 'USD',
+            default_currency: data.defaultCurrency || 'NGN',
             tax_rate: data.taxRate || 0,
             created_at: data.createdAt || null
         };

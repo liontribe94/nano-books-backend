@@ -3,23 +3,29 @@ const auditLogService = require('../../services/auditLogService');
 
 class EmployeeService {
     async createEmployee(data, userId, companyId) {
-        // Map camelCase to snake_case for Supabase if needed, but let's assume repository handles it or DB is flexible.
-        // Actually, Supabase/Postgres is case sensitive with quotes, but usually snake_case is best.
-        // I will map manually here to be safe if I used snake_case in repo.
-        // Checking repo: I used `company_id` and `is_deleted`. So I should map.
+        let firstName = data.firstName;
+        let lastName = data.lastName;
+
+        if (!firstName && data.name) {
+            const parts = data.name.trim().split(' ');
+            firstName = parts[0];
+            lastName = parts.slice(1).join(' ') || '-';
+        }
+
+        const position = data.position || data.role || 'Staff';
 
         const dbData = {
-            first_name: data.firstName,
-            last_name: data.lastName,
+            first_name: firstName || 'Unnamed',
+            last_name: lastName || 'Employee',
             email: data.email,
-            phone: data.phone,
-            position: data.position,
-            department: data.department,
-            salary: data.salary,
-            hire_date: data.hireDate,
+            phone: data.phone || '',
+            position: position,
+            department: data.department || 'General',
+            salary: data.salary || 0,
+            hire_date: data.hireDate || new Date().toISOString().split('T')[0],
             status: data.status || 'ACTIVE',
-            bank_code: data.bankCode,
-            account_number: data.accountNumber,
+            bank_code: data.bankCode || null,
+            account_number: data.accountNumber || null,
             company_id: companyId,
             is_deleted: false,
             created_at: new Date().toISOString(),
@@ -78,20 +84,36 @@ class EmployeeService {
     }
 
     async getPayrollHistory(id, companyId) {
-        // Mock data or fetch from Payroll module (once implemented)
-        // For now return empty or mock
-        return [
-            { id: 'pay_1', date: '2023-01-31', amount: 5000, status: 'PAID' },
-            { id: 'pay_2', date: '2023-02-28', amount: 5000, status: 'PAID' }
-        ];
+        // Fetch payroll runs for this company and filter for the specific employee in the JSON details
+        const { data, error } = await employeeRepository.findPayrollHistory(id, companyId);
+        if (error) throw new Error(error.message);
+
+        return data.map(run => {
+            const employeeDetails = run.details.find(d => d.employeeId === id) || {};
+            return {
+                id: run.id,
+                date: run.period_end,
+                amount: employeeDetails.netPay || 0,
+                status: run.status
+            };
+        });
     }
 
     async getFinancialSnapshot(id, year, companyId) {
+        const history = await this.getPayrollHistory(id, companyId);
+        const yearStr = (year || new Date().getFullYear()).toString();
+        
+        const yearHistory = history.filter(h => h.date.startsWith(yearStr) && h.status === 'PAID');
+
+        const totalPaid = yearHistory.reduce((sum, h) => sum + h.amount, 0);
+        // In a real system, we'd sum up bonus and deductions from details too.
+        // For now, let's keep it simple based on the history we have.
+        
         return {
-            totalPaid: 10000,
-            bonuses: 500,
-            deductions: 200,
-            netPay: 10300
+            totalPaid,
+            bonuses: 0, // Would need to parse details further
+            deductions: 0,
+            netPay: totalPaid
         };
     }
 

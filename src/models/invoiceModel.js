@@ -6,7 +6,7 @@ class InvoiceModel extends BaseModel {
     }
 
     prepare(data, companyId, createdBy) {
-        const required = ['customerId', 'invoiceNumber', 'issueDate', 'dueDate', 'currency', 'status', 'subtotal', 'taxTotal', 'totalAmount'];
+        const required = ['customerId', "customerName", 'invoiceNumber', 'issueDate', 'dueDate', 'currency', 'status', 'subtotal', 'taxTotal', 'totalAmount'];
         required.forEach(field => {
             if (data[field] === undefined) throw new Error(`Missing required field: ${field}`);
         });
@@ -14,6 +14,7 @@ class InvoiceModel extends BaseModel {
         return {
             company_id: companyId,
             customer_id: data.customerId,
+            customer_name: data.customerName,
             invoice_number: data.invoiceNumber,
             issue_date: data.issueDate,
             due_date: data.dueDate,

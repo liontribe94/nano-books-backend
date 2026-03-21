@@ -15,7 +15,7 @@ const createInvoiceSchema = Joi.object({
     totalAmount: Joi.string().required(),
     issueDate: Joi.date().required(),
     dueDate: Joi.date().required(),
-    currency: Joi.string().default('USD'),
+    currency: Joi.string().valid('NGN', 'GBP', 'EUR', 'USD').default('NGN'),
     status: Joi.string().valid('draft', 'sent', 'paid', 'overdue').default('draft'),
     items: Joi.array().items(invoiceItemSchema).min(1).required(),
     discount: Joi.number().min(0).default(0),

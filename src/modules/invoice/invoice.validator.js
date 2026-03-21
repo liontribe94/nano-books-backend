@@ -9,13 +9,14 @@ const invoiceItemSchema = Joi.object({
 
 const createInvoiceSchema = Joi.object({
     customerId: Joi.string().required(),
+     customerName: Joi.string().required(),
     invoiceNumber: Joi.string().optional(), // Can be auto-generated
     issueDate: Joi.date().required(),
     taxTotal: Joi.number().required(),
     subtotal: Joi.number().required(),
     totalAmount: Joi.number().required(),
     dueDate: Joi.date().required(),
-    currency: Joi.string().default('USD'),
+    currency: Joi.string().valid('NGN', 'GBP', 'EUR', 'USD').default('NGN'),
     status: Joi.string().valid('draft', 'sent', 'paid', 'overdue').default('draft'),
     items: Joi.array().items(invoiceItemSchema).min(1).required(),
     discount: Joi.number().min(0).default(0),
@@ -24,6 +25,7 @@ const createInvoiceSchema = Joi.object({
 
 const updateInvoiceSchema = Joi.object({
     customerId: Joi.string().optional(),
+      customerName: Joi.string().required(),
     invoiceNumber: Joi.string().optional(),
     issueDate: Joi.date().optional(),
     dueDate: Joi.date().optional(),

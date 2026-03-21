@@ -70,7 +70,7 @@ class InvoiceRepository {
         if (status) query = query.eq('status', status);
         if (customerId) query = query.eq('customer_id', customerId);
 
-        query = query.order('created_at', { ascending: false });
+        query = query.order('created_at', { ascending: true });
 
         const { data, error } = await query;
         if (error) throw new Error(error.message);
