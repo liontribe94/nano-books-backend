@@ -10,7 +10,6 @@ class SettingModel extends BaseModel {
             company_id: companyId,
             invoice_prefix: data.invoicePrefix ?? existing.invoice_prefix ?? 'INV-',
             invoice_footer: data.invoiceFooter ?? existing.invoice_footer ?? '',
-            default_tax_rate: data.defaultTaxRate ?? existing.default_tax_rate ?? 0,
             payment_terms: data.paymentTerms ?? existing.payment_terms ?? '',
             created_at: data.createdAt ?? existing.created_at ?? null,
             updated_at: data.updatedAt ?? existing.updated_at ?? null

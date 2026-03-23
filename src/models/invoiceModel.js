@@ -33,14 +33,23 @@ class InvoiceModel extends BaseModel {
     }
 
     prepareItem(item, invoiceId, companyId) {
+        const quantity = Number(item.quantity ?? item.qty ?? 1);
+        const unitPrice = Number(item.rate ?? item.unitPrice ?? item.unit_price ?? item.price ?? 0);
+        const totalPrice = Number(item.amount ?? item.totalPrice ?? item.total_price ?? (quantity * unitPrice));
         return {
             invoice_id: invoiceId,
+            invoiceId: invoiceId,
             company_id: companyId,
+            companyId: companyId,
             product_id: item.productId,
             description: item.description,
-            quantity: item.quantity || 1,
-            unit_price: item.rate || item.unitPrice || 0,
-            total_price: item.amount || item.totalPrice || 0,
+            quantity,
+            unit_price: unitPrice,
+            unitPrice,
+            rate: unitPrice,
+            total_price: totalPrice,
+            totalPrice,
+            amount: totalPrice,
             created_at: new Date().toISOString()
         };
     }

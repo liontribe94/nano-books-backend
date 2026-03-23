@@ -131,7 +131,15 @@ class SettingService {
         if (!data) return null;
 
         const metadata = this.parsePaymentTerms(data.payment_terms);
-        const defaultTaxRate = Number(data.default_tax_rate ?? 0);
+        const defaultTaxRateFromMeta = Array.isArray(metadata.taxes) && metadata.taxes.length > 0
+            ? Number(
+                (
+                    metadata.taxes.find((tax) => (tax.status || '').toLowerCase() === 'active')
+                    || metadata.taxes[0]
+                )?.rate || 0
+            )
+            : 0;
+        const defaultTaxRate = Number(data.default_tax_rate ?? defaultTaxRateFromMeta ?? 0);
         const resolvedCurrency = metadata.defaultCurrency || 'NGN';
 
         return {
