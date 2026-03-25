@@ -7,6 +7,8 @@ const { registerSchema, loginSchema } = require('../modules/user/user.validator'
 
 router.post('/register', validate(registerSchema), userController.register);
 router.post('/login', validate(loginSchema), userController.login);
+router.post('/logout', userController.logout);
 router.get('/profile', authenticate, userController.getProfile);
 
 module.exports = router;
+

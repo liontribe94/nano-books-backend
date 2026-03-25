@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { COOKIE_NAME } = require('../config/auth-cookie');
 
 const getUserWithRetry = async (token, maxRetries = 3) => {
     let lastError;
@@ -77,17 +78,29 @@ const findProfile = async (user) => {
     return byEmail.data;
 };
 
-const authenticate = async (req, res, next) => {
+const extractTokenFromRequest = (req) => {
     const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.split(' ')[1];
+    }
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const cookieToken = req.cookies?.[COOKIE_NAME];
+    if (cookieToken) {
+        return cookieToken;
+    }
+
+    return null;
+};
+
+const authenticate = async (req, res, next) => {
+    const token = extractTokenFromRequest(req);
+
+    if (!token) {
         return res.status(401).json({
             success: false,
             error: 'No token provided. Authorization denied.'
         });
     }
-
-    const token = authHeader.split(' ')[1];
 
     try {
         const result = await getUserWithRetry(token);

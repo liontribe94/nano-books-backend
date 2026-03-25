@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
 const errorHandler = require('./middleware/errorHandler');
 const routes = require('./routes');
@@ -35,6 +36,7 @@ app.options(/^.*$/, cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan('dev'));
 
 // Routes
@@ -50,3 +52,4 @@ app.get('/', (req, res) => {
 app.use(errorHandler);
 
 module.exports = app;
+
